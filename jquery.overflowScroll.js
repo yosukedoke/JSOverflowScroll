@@ -1,39 +1,44 @@
-;(function (window, $, _) {
+;(function ($) {
     "use strict";
 
-    $.fn.overflowScroll = function () {
-        this.each(function (i) {
+    var MIN_DRAG_DISTANCE = 20,
+        INTERVAL_TO_MOVE = 16,
+        FRICTION = 0.98,
+        LIMIT_SPEED = 10,
+        LIMIT_TO_STOP = 1,
+        ATTR_FLAG = "data-jquery-overflow-scroll";
+
+    $.fn.overflowScroll = function () {// console.log("overflowScroll");
+        this.each(function () {
             setup($(this));
         });
     };
 
     function setup($target) {
+        if($target.attr(ATTR_FLAG)) { return; }
+        $target.attr(ATTR_FLAG, 1);
+        
         var isTouch = false,
             blockingClick = false,
             intervalID,
-        //
             touchStartX = 0,
             touchStartY = 0,
             scrollStartX = 0,
             scrollStartY = 0,
-        //
             touchX = 0,
             touchY = 0,
             touchSpeedX = 0,
             touchSpeedY = 0,
-        //
             minScrollX = 0,
             minScrollY = 0,
             maxScrollX = ($target.get(0).scrollWidth || $target.get(0).clientWidth) - $target.width(),
             maxScrollY = ($target.get(0).scrollHeight || $target.get(0).clientHeight) - $target.height();
-
+    
         function clickSilencer() {
             return !blockingClick;
         }
-        $target.on("click", "a", clickSilencer);
-        $target.on("touchstart", function (event) {
+        function touchStart(event) {
             event = event.originalEvent;
-            event.preventDefault();
 
             blockingClick = false;
             clearInterval(intervalID);
@@ -47,11 +52,12 @@
 
             scrollStartX = $target.scrollLeft();
             scrollStartY = $target.scrollTop();
-        });
-        $target.on("touchmove", _.throttle(function (event) {
-            if(!isTouch) { return; }
+        }
 
+        function touchMove(event) {
             event = event.originalEvent;
+            event.preventDefault();
+
             var touch = event.touches[0];
 
             touchX = touch.pageX;
@@ -60,7 +66,7 @@
             var diffX = Math.abs(touchStartX - touchX),
                 diffY = Math.abs(touchStartY - touchY);
 
-            if(!blockingClick && (diffX > 20 || diffY > 20)) {
+            if(!blockingClick && (diffX > MIN_DRAG_DISTANCE || diffY > MIN_DRAG_DISTANCE)) {
                 blockingClick = true;
             }
             var willScrollX = scrollStartX + (touchStartX - touchX),
@@ -68,10 +74,11 @@
 
             $target.scrollLeft(willScrollX);
             $target.scrollTop(willScrollY);
-
-        }, 100));
-        $target.on("touchend touchcancel", function (event) {
+        }
+        function touchEnd(event) {
             event = event.originalEvent;
+
+            clearInterval(intervalID);
 
             var touch = event.changedTouches[0];
             isTouch = false;
@@ -99,24 +106,27 @@
                 touchSpeedY = 0;
             }
 
-            intervalID = setInterval(afterMoving, 16);
-        });
+            intervalID = setInterval(afterMoving, INTERVAL_TO_MOVE);
+        }
+
+        $target.on("click", "a", clickSilencer);
+        $target.on("touchstart",touchStart);
+        $target.on("touchmove", touchMove);
+        $target.on("touchend touchcancel", touchEnd);
 
         function afterMoving() {
             if (isTouch) {
                 clearInterval(intervalID);
                 return;
             }
-            if ((Math.abs(touchSpeedX)<0.5 && Math.abs(touchSpeedY)<0.5)) {
+            if ((Math.abs(touchSpeedX)<LIMIT_TO_STOP && Math.abs(touchSpeedY)<LIMIT_TO_STOP)) {
                 blockingClick = false;
                 clearInterval(intervalID);
                 return;
             }
 
             var oldX = $target.scrollLeft(),
-                oldY = $target.scrollTop(),
-                FRICTION = 0.98,
-                LIMIT_SPEED = 10;
+                oldY = $target.scrollTop();
 
             touchSpeedX *= FRICTION;
             touchSpeedY *= FRICTION;
@@ -125,4 +135,4 @@
             $target.scrollTop(oldY + Math.round(Math.min(LIMIT_SPEED,Math.max(-LIMIT_SPEED, touchSpeedY))));
         }
     }
-})(this, jQuery, _);
+})(jQuery);
