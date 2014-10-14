@@ -1,4 +1,10 @@
-;(function ($) {
+/**
+ * @license JSOverflowScroll v0.1
+ * (c) 2013 Yosuke Doke http://yd-niku.holiday
+ * License: MIT
+ */
+ 
+ ;(function ($) {
     "use strict";
 
     var MIN_DRAG_DISTANCE = 20,
